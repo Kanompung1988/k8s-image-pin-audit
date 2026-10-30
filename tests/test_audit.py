@@ -28,6 +28,7 @@ class ReferenceTest(unittest.TestCase):
     def test_empty_image(self): self.assertIn('error',parse_image(''))
     def test_whitespace(self): self.assertIn('error',parse_image('x y'))
     def test_bad_tag(self): self.assertIn('error',parse_image('x::'))
+    def test_non_ascii_tag_rejected(self): self.assertIn('error',parse_image('app:ไทย'))
 
 class WorkloadTest(unittest.TestCase):
     def test_pod(self): self.assertEqual(spec_from(pod('nginx'))['containers'][0]['image'], 'nginx')
@@ -43,6 +44,8 @@ class WorkloadTest(unittest.TestCase):
     def test_version_tag_medium(self): self.assertEqual(analyze([pod('nginx:v1')])['findings'][0]['rule'],'IP002')
     def test_pull_never(self): self.assertIn('IP003',[f['rule'] for f in analyze([pod('nginx@'+D,'Never')])['findings']])
     def test_bad_policy(self): self.assertIn('IP006',[f['rule'] for f in analyze([pod('nginx@'+D,'Unknown')])['findings']])
+    def test_list_policy(self): self.assertIn('IP006',[f['rule'] for f in analyze([pod('nginx@'+D,['Always'])])['findings']])
+    def test_malformed_cronjob_structure(self): self.assertEqual(analyze([{'kind':'CronJob','spec':{'jobTemplate':[]}}])['containers_checked'],0)
     def test_cached_tag(self): self.assertIn('IP005',[f['rule'] for f in analyze([pod('nginx:v1','IfNotPresent')])['findings']])
     def test_pinned_ifnotpresent(self): self.assertFalse(analyze([pod('nginx@'+D,'IfNotPresent')])['findings'])
     def test_init_containers(self):
