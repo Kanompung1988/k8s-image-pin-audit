@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: payments-job
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          initContainers:
+            - name: migrate
+              image: alpine:latest
+          containers:
+            - name: worker
+              image: registry.example.com:5000/payments:1.4
+              imagePullPolicy: IfNotPresent

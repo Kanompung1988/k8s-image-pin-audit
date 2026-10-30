@@ -1,0 +1,34 @@
+name: Verify Agent Skill
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install requirements
+        run: if [ -f requirements.txt ]; then python -m pip install -r requirements.txt; fi
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Run deterministic fixtures
+        run: |
+          python scripts/audit.py examples/safe.yaml --format json --fail-on high > /tmp/safe.json
+          python scripts/audit.py examples/review.yaml --format json --fail-on none > /tmp/review.json
+          python -c 'import json; assert json.load(open("/tmp/safe.json"))["findings"] == []'
+          python -c 'import json; assert len(json.load(open("/tmp/review.json"))["findings"]) >= 1'
+      - name: Check Agent Skill metadata and assets
+        run: |
+          python -c 'from pathlib import Path; s=Path("SKILL.md").read_text(); assert s.startswith("---\nname: "); assert "description:" in s and "## Procedure" in s'
+          python -c 'from pathlib import Path; assert Path("assets/area-zero-logo-full.svg").exists() and Path("assets/hero.svg").exists()'
