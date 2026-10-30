@@ -17,7 +17,7 @@ MAX_BYTES = 1024 * 1024
 MAX_DOCUMENTS = 500
 LEVEL = {"low": 1, "medium": 2, "high": 3}
 DIGEST = re.compile(r"^sha256:[a-fA-F0-9]{64}$")
-TAG = re.compile(r"^[\w][\w.-]{0,127}$")
+TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
 
 
 def spec_from(obj: dict) -> dict | None:
@@ -28,7 +28,9 @@ def spec_from(obj: dict) -> dict | None:
     if kind == "Pod":
         return spec
     if kind == "CronJob":
-        tmpl = spec.get("jobTemplate", {}).get("spec", {}).get("template", {})
+        job = spec.get("jobTemplate")
+        job_spec = job.get("spec") if isinstance(job, dict) else None
+        tmpl = job_spec.get("template") if isinstance(job_spec, dict) else None
     elif kind in {"Deployment", "DaemonSet", "StatefulSet", "Job", "ReplicaSet", "ReplicationController"}:
         tmpl = spec.get("template", {})
     else:
@@ -75,7 +77,7 @@ def examine_container(container: dict, location: str) -> list[dict]:
     elif not parsed["pinned"]:
         emit("IP002", "medium", "Tag is mutable; consider a sha256 digest for repeatable rollout.")
     policy = container.get("imagePullPolicy")
-    if policy is not None and policy not in {"Always", "IfNotPresent", "Never"}:
+    if policy is not None and (not isinstance(policy, str) or policy not in {"Always", "IfNotPresent", "Never"}):
         emit("IP006", "high", "Unknown imagePullPolicy value; Kubernetes accepts Always, IfNotPresent, Never.")
     elif policy == "Never":
         emit("IP003", "medium", "Never requires the exact image to be preloaded on every eligible node.")
